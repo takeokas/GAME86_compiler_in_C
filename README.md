@@ -1,2 +1,23 @@
-# GAME86_compiler_in_C
-GAME86_compiler_in_C
+# GAME86言語のコンパイラをC言語で記述
+
+##   Jun Mizutani (mizutani.jun@nifty.or.jp) 氏 作のPascal版を、Cに書き直した。  
+- オリジナル:  https://www.mztn.org/game86/  
+- runtimeルーチンも、Jun Mizutani のもの  
+
+
+
+## 出力は、いきなり 8086 のバイナリ  
+- ヘッダ情報もなにも付いていない  
+- MS-DOSなどで動かすことを考えていなので、0000 番地からプログラム・コードを生成  
+-- バイナリ・コードの先頭番地は、簡単に変えられるはず
+
+## たけおか 独自 文法拡張  
+  - IO port access 「^」。 ^:expIOadr) で、IOポートを1Byte アクセス  
+  - 単項演算子: ~ (バイナリ インバート)  
+  - 二項演算子:  &(and) |(or) ^(xor)  
+  - 行の先頭アドレスを参照。単行演算子「@」,  @行番号 (行番号は十進定数)で、指定行の先頭アドレスが得られる  
+  - セグメント指定付き 1Byte アクセス。  
+    特殊変数「_ 」を使用する。  
+    先んじて、SEG variable 「_ 」に  _=exp で、セグメントの値を設定する。  
+     値のセット:   _:expoff)=exp でセグメントとoffsetを指定してexpの値をセット。  
+     参照: 式中に _:expoff) を書いて、セグメントとoffsetを指定してアクセス。  
