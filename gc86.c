@@ -1113,7 +1113,7 @@ void
 usage()
 {
   title();
-  printf("%s [-r] [-o OutFileName]  Source_filename\n", cmdname);
+  printf("%s [-o OutFileName] [-l] [-v] [-r]  Source_filename\n", cmdname);
 }
 
 int
@@ -1138,7 +1138,7 @@ do_args(int argc, char *argv[])
 	case 'h':
 	default:
 	  usage();
-	  printf("-r : raw binary(start address=0000h)\n-o FileNmae :output file");
+	  printf("-o FileName : specify output file\n-l : Listing Address of Lines\n-v : verbose\n-r : raw binary(start address=0000h)\n");
 	  exit(1);
 	  //return -1;
         }
