@@ -6,14 +6,20 @@
 ;--------------------------------------------------------------------
 
 	CPU 8086
+%ifdef DOS
+COMOFFSET equ 100h
+%endif
+%ifdef RAW
+COMOFFSET equ 0
+%endif
 
 CODE SEGMENT  BYTE
 ;          ASSUME   DS:data
-RNDSEED    EQU  01F0H
-OBJEND     EQU  01F4H
-REMAINDER  equ  01F8H
-ESEG       equ  01FCH
-INBUFFER   EQU  0234H ;'[' ;01FEH
+RNDSEED    EQU  01F0H+COMOFFSET
+OBJEND     EQU  01F4H+COMOFFSET
+REMAINDER  equ  01F8H+COMOFFSET
+ESEG       equ  01FCH+COMOFFSET
+INBUFFER   EQU  0234H+COMOFFSET ;'[' ;01FEH
 ;;RNDSEED    EQU  01C0H
 ;;OBJEND     EQU  01C2H
 ;;REMAINDER  equ  01C4H
@@ -23,21 +29,23 @@ INBUFFER   EQU  0234H ;'[' ;01FEH
 ;OBJEND     EQU  03F8H
 ;INBUFFER   EQU  03F0H
 ;
-DataSeg    equ 200h
-DATAAREA   EQU  1000H
+;DATAAREA   EQU  1000H
 ;
 ; SS: 02000h
 ;STACKSPACE EQU  0000H
 ; code
-USERSTART  EQU  0200H
+;;;USERSTART  EQU  0200H+COMOFFSET
+USERSTART  EQU  0300H+COMOFFSET
 ;
 
 
 ;          ASSUME   CS:CODE
 	;org 000h, 0400h:0000h
-start_off equ 0000h
-        TIMES start_off-($-$$) DB 00h   ;0FFh
+start_off equ 0000h+COMOFFSET
+;        TIMES start_off-($-$$) DB 00h   ;0FFh
+	org start_off
 
+	section .text
 
 entrypoints:	
      JMP near  STARTUP
@@ -342,6 +350,36 @@ ABSS:  ; abs(AX)
 USARTD  equ     00h     ;8251 data register
 USARTC  equ     01h     ;8251 control register
 ;
+%ifdef DOS
+;--------------------------
+; DOS I/O
+;--------------------------
+putc:
+     push ax
+     push bx
+     push cx
+     push dx
+     MOV  AH,02H
+     MOV  DL,AL
+     INT  21H
+     pop dx
+     pop cx
+     pop bx
+     pop ax
+     RET
+getc:   
+     push bx
+     push cx
+     push dx
+     MOV  AH,08H
+     INT  21H
+     XOR  AH,AH
+     pop dx
+     pop cx
+     pop bx
+     RET
+%endif
+%ifdef RAW	
 ;--------------------------
 ; Serial I/O
 ;--------------------------
@@ -368,7 +406,7 @@ getc1:
         in      al,USARTD       ;Get Char
         ret
         ;; end of getc
-
+%endif
 ;;; ;;;;;;;;;;;;;
 
 STARTUP:
@@ -417,9 +455,10 @@ inttst0:
 ;	iret
 
 ;;; ;
-start_end equ 2ffh
-        TIMES start_end-($-$$) DB 41h   ;0FFh
-	db 41h
+;start_end equ 2ffh+COMOFFSET
+;        TIMES start_end-($-$$) DB 41h   ;0FFh
+;	db 41h
+
 ;END
 	;mov di,ax
 	;mov al,ES:[di]
