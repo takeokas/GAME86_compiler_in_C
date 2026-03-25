@@ -57,7 +57,7 @@
     57 00000012 E95700                       JMP near HEX4
     58 00000015 E9ED00                       JMP near PRINT_RIGHT
     59 00000018 E9A100                       JMP near PRINT_LEFT
-    60 0000001B E9A601                       JMP near getc
+    60 0000001B E9A201                       JMP near getc
     61 0000001E E91D01                       JMP near INPUT
     62                                       ;JMP near ABSS		;obsolete
     63 00000021 E96900                       JMP near RND
@@ -157,7 +157,7 @@
    157 0000008D 53                           PUSH BX
    158 0000008E 57                           PUSH DI
    159 0000008F 50                           PUSH AX
-   160 00000090 BFF002                       MOV  DI,RNDSEED            ; work for seed
+   160 00000090 BFF001                       MOV  DI,RNDSEED            ; work for seed
    161 00000093 B8093D                       MOV  AX,3D09H
    162 00000096 2E8B1D                       MOV  BX,CS:[DI]
    163 00000099 F7E3                         MUL  BX
@@ -270,11 +270,11 @@
    270 0000013E 53                           PUSH BX
    271 0000013F 57                           PUSH DI
    272 00000140 56                           PUSH SI
-   273 00000141 BF3403                       MOV  DI,INBUFFER         ; BUFFER
+   273 00000141 BF3402                       MOV  DI,INBUFFER         ; BUFFER
    274 00000144 31C9                         XOR  CX,CX
    275 00000146 31F6                         XOR  SI,SI
    276                                     IN1:
-   277 00000148 E87900                       CALL getc
+   277 00000148 E87500                       CALL getc
    278 0000014B 3C2D                         CMP  AL,'-'              ; NEGATIVE #
    279 0000014D 750C                         JNZ  IN2
    280 0000014F 85F6                         TEST SI,SI
@@ -314,7 +314,7 @@
    314 0000018A EBBC                         JMP  IN1
    315                                     IN4:
    316 0000018C E8C8FE                       CALL CRLF
-   317 0000018F BF3403                       MOV  DI,INBUFFER
+   317 0000018F BF3402                       MOV  DI,INBUFFER
    318 00000192 31C0                         XOR  AX,AX
    319                                     IN5:
    320 00000194 85C9                         TEST CX,CX
@@ -355,56 +355,56 @@
    355                                  ; DOS I/O
    356                                  ;--------------------------
    357                                  putc:
-   358 000001B5 50                           push ax
-   359 000001B6 53                           push bx
-   360 000001B7 51                           push cx
-   361 000001B8 52                           push dx
-   362 000001B9 B402                         MOV  AH,02H
-   363 000001BB 88C2                         MOV  DL,AL
-   364 000001BD CD21                         INT  21H
-   365 000001BF 5A                           pop dx
-   366 000001C0 59                           pop cx
-   367 000001C1 5B                           pop bx
-   368 000001C2 58                           pop ax
-   369 000001C3 C3                           RET
+   358                                       push ax
+   359                                       push bx
+   360                                       push cx
+   361                                       push dx
+   362                                       MOV  AH,02H
+   363                                       MOV  DL,AL
+   364                                       INT  21H
+   365                                       pop dx
+   366                                       pop cx
+   367                                       pop bx
+   368                                       pop ax
+   369                                       RET
    370                                  getc:   
-   371 000001C4 53                           push bx
-   372 000001C5 51                           push cx
-   373 000001C6 52                           push dx
-   374 000001C7 B408                         MOV  AH,08H
-   375 000001C9 CD21                         INT  21H
-   376 000001CB 30E4                         XOR  AH,AH
-   377 000001CD 5A                           pop dx
-   378 000001CE 59                           pop cx
-   379 000001CF 5B                           pop bx
-   380 000001D0 C3                           RET
+   371                                       push bx
+   372                                       push cx
+   373                                       push dx
+   374                                       MOV  AH,08H
+   375                                       INT  21H
+   376                                       XOR  AH,AH
+   377                                       pop dx
+   378                                       pop cx
+   379                                       pop bx
+   380                                       RET
    381                                  %endif
    382                                  %ifdef RAW	
    383                                  ;--------------------------
    384                                  ; Serial I/O
    385                                  ;--------------------------
-   386                                  putc:   push ax
-   387                                  putc1:  in      al,USARTC       ;Get status
-   388                                          and     al,01h          ;check TxBUF empty
-   389                                          jz      putc1           ;wait for empty
-   390                                          pop     ax              ;Restore char
-   391                                          out     USARTD,al       ;Out it
-   392                                          ret
+   386 000001B5 50                      putc:   push ax
+   387 000001B6 E401                    putc1:  in      al,USARTC       ;Get status
+   388 000001B8 2401                            and     al,01h          ;check TxBUF empty
+   389 000001BA 74FA                            jz      putc1           ;wait for empty
+   390 000001BC 58                              pop     ax              ;Restore char
+   391 000001BD E600                            out     USARTD,al       ;Out it
+   392 000001BF C3                              ret
    393                                          ;; end of putc
    394                                  
    395                                  getc:   
    396                                  getc1:
    397                                          ;;; himatubusi SW->LED
-   398                                          in al,04h               ;read SW1
-   399                                          add al,al
-   400                                          add al,al
-   401                                          out 0Ch,al              ;out LED
+   398 000001C0 E404                            in al,04h               ;read SW1
+   399 000001C2 00C0                            add al,al
+   400 000001C4 00C0                            add al,al
+   401 000001C6 E60C                            out 0Ch,al              ;out LED
    402                                          ;;; 
-   403                                          in      al,USARTC       ;Get status
-   404                                          and     al,02h          ;check RxBUF full
-   405                                          jz      getc1           ;wait for empty
-   406                                          in      al,USARTD       ;Get Char
-   407                                          ret
+   403 000001C8 E401                            in      al,USARTC       ;Get status
+   404 000001CA 2402                            and     al,02h          ;check RxBUF full
+   405 000001CC 74F2                            jz      getc1           ;wait for empty
+   406 000001CE E400                            in      al,USARTD       ;Get Char
+   407 000001D0 C3                              ret
    408                                          ;; end of getc
    409                                  %endif
    410                                  ;;; ;;;;;;;;;;;;;
@@ -427,7 +427,7 @@
    427                                       ;MOV  BX,AX
    428                                       ;MOV  AH,4AH
    429                                       ;INT  21H
-   430 000001D7 BB0004                       MOV  BX,USERSTART
+   430 000001D7 BB0003                       MOV  BX,USERSTART
    431 000001DA FFE3                         JMP  BX
    432                                  	;;
    433                                  intTest:
