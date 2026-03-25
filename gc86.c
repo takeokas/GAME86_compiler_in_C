@@ -18,13 +18,28 @@
   
   生成バイナリの、メモリ・マップ
 
-   CS,DS:40h |--------------------| 400h:0000
+  RAW
+   CS,DS:40h |--------------------| 400h:0000h
              |   RUNTIME          |
-             |--------------------| 
+             |--------------------| 100h
              |   RUNTIME Work     |
              |--------------------| 200h
              |     VARIABLE       |
              |--------------------| 300h
+             |  user OBJECT CODE  |
+             |                    |
+   SS:2000h  |--------------------| 020000h:0
+             |   STACK            |            | MAX 64 KB 
+             |--------------------| FFFF
+
+  DOS
+   CS,DS:40h |--------------------| 400h:0100h
+             |   RUNTIME          |
+             |--------------------| 200h
+             |   RUNTIME Work     |
+             |--------------------| 300h
+             |     VARIABLE       |
+             |--------------------| 400h
              |  user OBJECT CODE  |
              |                    |
    SS:2000h  |--------------------| 020000h:0
@@ -62,48 +77,76 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h> 
 
 #define  hi(x) (((x)>>8)& 0xFF)
 #define  lo(x) ((x)& 0xFF)
 #define  True 1
 #define  False 0
 
-#define  RTName "rt.com"
-#define  RTAdr 0x0
+int Dos=1;
+int ComOffset =0x100;      /*Offset for DOS *.COM file*/
+int  RTAdr; // may be ComOffset. Runtime routines Top address, Top of Object code
+char *RTName ="rt.com";  // for DOS
+
+  /* Run-time Routine Address for MS-DOS GAME86 compiler     */
+int OUTCH;
+int PRINT;
+int CRLF;
+int TAB;
+int HEX2;
+int HEX4;
+int PRRIGHT;
+int PRLEFT;
+int INCH;
+int INPUT;
+/*int ABSS    = 0x0021+RTAdr; /* obsolete*/
+int RND;
+int IRET;
+int STI;
+int CLI;
+int INTEntry;
 
 
-/* Run-time Routine Address for MS-DOS GAME86 compiler     */
-const int OUTCH   = 0x0003;
-const int PRINT   = 0x0006;
-const int CRLF    = 0x0009;
-const int TAB     = 0x000C;
-const int HEX2    = 0x000F;
-const int HEX4    = 0x0012;
-const int PRRIGHT = 0x0015;
-const int PRLEFT  = 0x0018;
-const int INCH    = 0x001B;
-const int INPUT   = 0x001E;
-/*const int ABSS    = 0x0021; /* obsolete*/
-const int RND     = 0x0021;//0x0024;
-const int IRET    = 0x0024;
-const int STI     = 0x0027;
-const int CLI     = 0x002A;
-const int INTEntry= 0x002D;
+void
+setup(int dos)
+{
+  if(dos){
+    ComOffset= 0x100;      /*Offset for .COM file*/
+    RTName= "rt.com";
+  }else{ //RAW
+    ComOffset= 0x0;      /*Offset for  RAW .COM file*/
+    RTName= "rt-raw.com";
+  }
 
+  RTAdr= ComOffset;
+  /* Run-time Routine Address for MS-DOS GAME86 compiler     */
+  OUTCH   = 0x0003+RTAdr;
+  PRINT   = 0x0006+RTAdr;
+  CRLF    = 0x0009+RTAdr;
+  TAB     = 0x000C+RTAdr;
+  HEX2    = 0x000F+RTAdr;
+  HEX4    = 0x0012+RTAdr;
+  PRRIGHT = 0x0015+RTAdr;
+  PRLEFT  = 0x0018+RTAdr;
+  INCH    = 0x001B+RTAdr;
+  INPUT   = 0x001E +RTAdr;
+  /*ABSS    = 0x0021+RTAdr; /* obsolete*/
+  RND     = 0x0021+RTAdr;//0x0024;
+  IRET    = 0x0024+RTAdr;
+  STI     = 0x0027+RTAdr;
+  CLI     = 0x002A+RTAdr;
+  INTEntry = 0x002D+RTAdr;
+}
+//
+#define RT_WORK (ComOffset+0x100)
+#define VARTop (0x200+ComOffset)        /* Top of Variable Area   */
+#define ObjOffset (0x300+ComOffset) /* Offset for Object  */
 
-const int ObjOffset = 0x300;      /* Offset for Object (ORG 0400H)  */
-//const int ObjOffset = 0x300;      /* Offset for Object (ORG 0400H)  */
-//const int ObjOffset = 0x000;      /* Offset for Object (ORG 0400H)  */
-const int ComOffset = 0x000;      /* Offset for .COM file           */
-//const int ComOffset = 0x100;      /* Offset for .COM file           */
-#define  VARTop 0x200                     /* Top of Variable Area   */
-
-//const int RNDSEED   = 0x1C0;
-//const int ObjEnd    = 0x1C2;
-#define RNDSEED    0x1F0    /*//0x1C0*/
-const int ObjEnd    =  0x1F4;    //0x1C2
-#define REMAINDER    0x1F8 //0x1C4
-#define ESEG     0x1FC//0x1C6
+#define RNDSEED     (RT_WORK+0xF0)    /*//0x1C0*/
+#define ObjEnd      (RT_WORK+0xF4)    //0x1C2
+#define REMAINDER   (RT_WORK+0xF8) //0x1C4
+#define ESEG        (RT_WORK+0xFC)//0x1C6
 //const int RNDSEED   = 0x2FA;
 //const int ObjEnd    = 0x2F8;
 
@@ -130,10 +173,14 @@ extern void Expression();    /* Code Generation , BX returns the value */
 extern int linetopAdr(int K);
 
 char FileName[128];                /* Source file            */
-char SaveFileName[128];                /* Source file            */
+char *SaveFileName=NULL;
+char out_fn[128];
 
 unsigned char SourceCode[MAXSOURCE];  /* Source Text        */
 unsigned char ObjCode[MAXOBJ]; /* Store Object Code      */
+
+int Verb=0;
+int List=0;
 
 //int  SrcPtr;                     /* Ptr to currrent post'n */
 int  S;                     /* Ptr to currrent post'n */
@@ -186,7 +233,7 @@ SetRunTime()
     ObjCode[i]=x;
   }
   fclose(r);
-  printf("RT-end=%x\n", i);
+  printf("%s:start=0x%x,RT-end=0x%x,", SaveFileName, RTAdr,i);
 }
 
 
@@ -305,12 +352,20 @@ GetNo()
 /* Get No. from Source, No. is returned by gloval var.: K */
   int E = -1;
   int c;
-  printf(" GetNo() ");
+  //printf(" GetNo() ");
   K = 0;
   c= ReadChar(0);
-  printf("===%c===",c);
+  //printf("===%c===",c);
   if( ReadChar(0)=='$'){
     S++; //AdvPtr();
+#if 0
+    if(' '==c || c=='\n'){
+      //printf(" inchar ");
+      PutObj(1,0xE8);
+      PutAdr(INCH);         /* CALL INCHAR */
+      return -1;
+    }
+#endif
     for(;;){
       c= ReadChar(0);
       if('0'<=c && c<='9'){
@@ -322,20 +377,13 @@ GetNo()
       }else
 	break;
     }
-    printf(" Hex=%x ",K);
-
-    if( ReadChar(-1) == '$'){
-      printf(" inchar ");
-      PutObj(1,0xE8);
-      PutAdr(INCH);         /* CALL INCHAR */
-      return -1;
-    }
+    //printf(" Hex=%x ",K);
     return K;
   }else{  // decimal No.
     for(;;){
       E = ReadChar(0)-'0';
       if(!((E>=0) && (E<=9))){
-	printf(" Dec=%d ",K);
+	//printf(" Dec=%d ",K);
 	return K;
       }
       K = K*10+E;
@@ -369,24 +417,25 @@ SignedNum()
 {int c;
  int minus=0;
  c = ReadChar(0);
- printf("---==%c==----",c);
+ //printf("---==%c==----",c);
  if((c=='$') && !isxdigit(ReadChar(1))){
-   printf("---$INCHAR----");
+   S++;
+   //printf("---$INCHAR----");
    return -1; // no value && '$' then INCHAR
  }
  if(c=='-'){
    if(!isdigit(ReadChar(1))){
-     printf("---NEGfunc----");
+     //printf("---NEGfunc----");
      return 0;
    }else{
-     printf("---MINUS_DecNum----");
+     //printf("---MINUS_DecNum----");
      S++;
      c=ReadChar(0);
      minus=1;
    }
  }
  if((c!='$') &&(!isdigit(c))){
-   printf("---NOTNum----");
+   //printf("---NOTNum----");
    return 0;
  }
  GetNo();
@@ -401,7 +450,7 @@ Term()        /* Code Generation,  AX returns the value */
 {
   char cch;
   int ln;
-  printf(" Term() ");
+  //printf(" Term() ");
 
   //SkipSpaces();
   if(SignedNum()) return;
@@ -541,7 +590,7 @@ Expression()    /* Code Generation , BX returns the value */
 {
   char cch;
   int  flg;
-  printf(" Expression() ");
+  //printf(" Expression() ");
 
   Term();                /* 1st term --> BX */
   XchgAXBX();
@@ -658,7 +707,7 @@ PutJumpAdr(int Q )  /* write line-top address */
     return;
   }
   la=linetopAdr(K);
-  printf(" **PutJumpAdr:K=%d,Q=%x,adr=%x** ",K,Q,la);
+  //printf(" **PutJumpAdr:K=%d,Q=%x,adr=%x** ",K,Q,la);
   PutAdr(la);
 }
 
@@ -794,7 +843,7 @@ IfCmd()
 void
 DoCmd()
 {
-  printf(" DoCmd() ");
+  //printf(" DoCmd() ");
   S++; //AdvPtr();
   if( ReadChar(0) != '='){                 /* Do */
         CtrlPtr = CtrlPtr + 1;
@@ -830,14 +879,14 @@ void
 OutString()
 {
   int  i,c;
-  printf(" OutString() ");
+  //printf(" OutString() ");
 
   PutObj(1,0xE9);                                 /* JP xxxx */
   Q = Adr+2;
   i = 0;
   S++;//  AdvPtr();
   while( (c=ReadChar(0)) != '"'){
-    printf(" %c ",c);
+    //printf(" %c ",c);
     if(c == '\n'){ break;/*Error(ERROR_DQ);*/}
     ObjCode[Q+i] = ReadChar(0);
     S++; //AdvPtr();
@@ -847,14 +896,14 @@ OutString()
   PutAdr(Q+i);                                   /* jump here */
   Adr = Adr+i;                      /* CX <- No of Ch,  DI <- Address */
   PutObj(1,0xB9);  PutObj(2,i);                   /* MOV CX,i   */
-  PutObj(1,0xBF);  PutObj(2,Q+ComOffset);         /* MOV DI,q   */
+  PutObj(1,0xBF);  PutObj(2,Q);/*PutObj(2,Q+ComOffset);/* MOV DI,q   */
   PutObj(1,0xE8);  PutAdr(PRINT);                 /* CALL OUTCHAR  */
 }
 
 void
 OutNum()
 {
-  printf(" OutNum() ");
+  //printf(" OutNum() ");
 
   if( ReadChar(1) == '='){
     ChangePtr(2);
@@ -888,11 +937,11 @@ void
 Statement()
 {
   char N;
-  printf(" Statement() ");
+  //printf(" Statement() ");
 
   //SkipSpaces();
   N = ReadChar(0);
-  printf(" N=%c",N);
+  //printf(" N=%c",N);
   switch(N){
   case '"'  :  OutString();return;
   case '#'  :  GotoCmd(0xE9);return;                      /*  JP  xxxx */
@@ -968,11 +1017,11 @@ Fin()
 
 
 void
-Gen(int pas)           /*** 1-2 PASS ROUTINE ***/
+Gen()           /*** 1-2 PASS ROUTINE ***/
 {
- printf(" Gen() ");
- Pass=pas;
- SourceLine  =  0;
+  //printf(" Gen() ");
+  //Pass=pas;
+
 l99: /* ** TOP OF LINE ** */
  if((ReadChar(0) == 0x1A) /*|| (S > SourceEnd)*/){  /* ^Z, End of File */
    Fin();
@@ -987,7 +1036,7 @@ l99: /* ** TOP OF LINE ** */
  else Error(ERROR_LINENO);
  LineNo = K;
  if( Pass == 1){
-   printf(" Line No: %4d,  Address =%04x ",LineNo,Adr);
+   //printf(" Line No: %4d,  Address =%04x ",LineNo,Adr);
    //write(^M" Line No:",LineNo:4,"  Address. = ",Adr:4,"  ");
    LineTable[SourceLine].ln = LineNo;
    LineTable[SourceLine].adr = Adr;
@@ -1017,7 +1066,7 @@ Load(char *SourceName)
 
   Source=fopen(SourceName, "r");
   if(Source == NULL){
-    printf("%s can not open\n",SourceName);
+    //printf("%s can not open\n",SourceName);
     exit(0);
   }
   for(i=0;;i++){
@@ -1028,11 +1077,13 @@ Load(char *SourceName)
   fclose(Source);
   SourceEnd = i - 1;
   SourceCode[i]= 0x1A; // put ^Z, EOF
-  printf("  Loaded %d bytes\n",i);
+  if(Verb){
+    printf("  Loaded %d bytes\n",i);
+  }
 }
 
 void
-Save(char *DestName, int ObjEnd)
+Save(char *DestName, int ObjectEnd)
 {
   FILE *Dest;//file of byte;
   int i;
@@ -1042,7 +1093,8 @@ Save(char *DestName, int ObjEnd)
     printf("%s can not open\n",DestName);
     exit(0);
   }
-  for(i=0;i <= ObjEnd; i++){
+  //for(i=0;i <= ObjectEnd; i++){
+  for(i=ComOffset;i <= ObjectEnd; i++){
     putc(ObjCode[i], Dest);
   }
   fclose(Dest);
@@ -1050,26 +1102,95 @@ Save(char *DestName, int ObjEnd)
 
 /*-----------------------------------------------------------------------*/
 void
+title()
+{
+  printf("GAME86 Compiler  under Linux  v.1.00 by S.Takeoka\n");
+  printf("original GAME86 Compiler  MS-DOS  v.1.00C by Jun 4/4/99\n");
+}
+
+char *cmdname;
+void
+usage()
+{
+  title();
+  printf("%s [-r] [-o OutFileName]  Source_filename\n", cmdname);
+}
+
+int
+do_args(int argc, char *argv[])
+{
+  int opt;
+  while ((opt = getopt(argc, argv, "rlvo:")) != -1) {
+        switch (opt) {
+	case 'r':
+	  Dos = 0;
+	  break;
+	case 'v':
+	  Verb = 1;
+	  break;
+	case 'l':
+	  List = 1;
+	  break;
+	case 'o':
+	  SaveFileName = optarg; // optarg は引数の値
+	  break;
+	case '?':
+	case 'h':
+	default:
+	  usage();
+	  printf("-r : raw binary(start address=0000h)\n-o FileNmae :output file");
+	  exit(1);
+	  //return -1;
+        }
+    }
+  return optind;
+}
+
+void
 main(int argc, char *argv[])
 {
-  printf("GAME86 Compiler  MS-DOS  v.1.00C by Jun 4/4/99\n");
-  if( argc > 2){
-  strcpy(FileName,argv[1]);
-  }else{
-    //printf("Source filename : ");
-    //read(FileName);
+  cmdname= argv[0];
+
+  int optind=do_args(argc, argv);
+
+  if(Verb){
+    title();
   }
-  strcpy(FileName,argv[1]);
-  strcat(FileName, ".g");
+
+  if( (argc-optind)==1){
+    strcpy(FileName,argv[optind]);  //source file name
+  }else{
+    usage();
+    exit(1);
+  }
+
+  if(SaveFileName == NULL){
+    SaveFileName= out_fn;
+    strncpy(SaveFileName, FileName,sizeof(out_fn));
+    char *p= rindex(SaveFileName, '.');
+    if(p ==NULL){
+      strncat(SaveFileName, ".com",sizeof(out_fn));
+    }else{
+      strcpy(p, ".com");
+    }
+  }
+  //printf("!!FileName=%s!!dos=%d,SaveFileName=%s\n",FileName,Dos,SaveFileName);
+
+  setup(Dos);
+
   Load(FileName );
   //Load(FileName  + ".GM");
+
+
   SetRunTime();
-  printf("\n");
+  //printf("\n");
   Adr = ObjOffset;
   S = 0;
   CtrlPtr = 0;
-  //Pass = 1;
-  Gen(1);
+  SourceLine  =  0;
+
+  Pass = 1;
+  Gen();
   ObjectEnd = Adr;
   ObjCode[ObjEnd]  =lo(ObjectEnd);     /* 0x03F8 */
   ObjCode[ObjEnd+1]=hi(ObjectEnd);     /* 0x03F9 */
@@ -1077,15 +1198,21 @@ main(int argc, char *argv[])
   Adr = ObjOffset;
   //DataBegin = 0;
   S = 0;
-  //Pass = 2;
-  Gen(2);
-  printf("\n\nPROGRAM SIZE: %d\n",Adr);
+  Pass = 2;
+  Gen();
 
-  printf("   ---> %s.COM",argv[1]);
-  strcpy(SaveFileName,argv[1]);
-  strcat(SaveFileName, ".com");
+  printf("end-adr=0x%x\n",Adr-1);
   Save(SaveFileName,ObjectEnd);
-  printf("\nEND\n");
+
+  if(List){
+    printf("line#: adr\n");
+    for(int i=0;;i++){
+       printf(" %4d: %04x\n",
+	      LineTable[i].ln,   LineTable[i].adr );
+       if(LineTable[i].ln ==  0x7FFF) break;
+    }
+  }
+  //printf("\nEND\n");
 }
 
 /* EOF */
