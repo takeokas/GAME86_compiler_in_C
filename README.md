@@ -3,7 +3,8 @@
 ##   Jun Mizutani (mizutani.jun@nifty.or.jp) 氏 作のPascal版を、Cに書き直した。  
 - オリジナル:  https://www.mztn.org/game86/  
 - runtimeルーチンも、Jun Mizutani 氏のもの(多少 改変した)  
-- 8086, 8088 の機械語を生成  
+- 8086, 8088 の機械語を生成
+- Linuxで動作  
 
 ## 使い方  
 $ make でmake  
