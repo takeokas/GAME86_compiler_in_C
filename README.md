@@ -1,4 +1,4 @@
-# GAME86言語のコンパイラをC言語で記述
+# GAME 8086言語のコンパイラを C 言語で記述
 
 ##   Jun Mizutani (mizutani.jun@nifty.or.jp) 氏 作のPascal版を、Cに書き直した。  
 - オリジナル:  https://www.mztn.org/game86/  
