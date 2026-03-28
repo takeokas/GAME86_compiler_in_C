@@ -359,129 +359,135 @@
    359                                       push bx
    360                                       push cx
    361                                       push dx
-   362                                       MOV  AH,02H
-   363                                       MOV  DL,AL
-   364                                       INT  21H
-   365                                       pop dx
-   366                                       pop cx
-   367                                       pop bx
-   368                                       pop ax
-   369                                       RET
-   370                                  getc:   
-   371                                       push bx
-   372                                       push cx
-   373                                       push dx
-   374                                       MOV  AH,08H
-   375                                       INT  21H
-   376                                       XOR  AH,AH
-   377                                       pop dx
-   378                                       pop cx
-   379                                       pop bx
-   380                                       RET
-   381                                  %endif
-   382                                  %ifdef RAW	
-   383                                  ;--------------------------
-   384                                  ; Serial I/O
-   385                                  ;--------------------------
-   386 000001B5 50                      putc:   push ax
-   387 000001B6 E401                    putc1:  in      al,USARTC       ;Get status
-   388 000001B8 2401                            and     al,01h          ;check TxBUF empty
-   389 000001BA 74FA                            jz      putc1           ;wait for empty
-   390 000001BC 58                              pop     ax              ;Restore char
-   391 000001BD E600                            out     USARTD,al       ;Out it
-   392 000001BF C3                              ret
-   393                                          ;; end of putc
-   394                                  
-   395                                  getc:   
-   396                                  getc1:
-   397                                          ;;; himatubusi SW->LED
-   398 000001C0 E404                            in al,04h               ;read SW1
-   399 000001C2 00C0                            add al,al
-   400 000001C4 00C0                            add al,al
-   401 000001C6 E60C                            out 0Ch,al              ;out LED
-   402                                          ;;; 
-   403 000001C8 E401                            in      al,USARTC       ;Get status
-   404 000001CA 2402                            and     al,02h          ;check RxBUF full
-   405 000001CC 74F2                            jz      getc1           ;wait for empty
-   406 000001CE E400                            in      al,USARTD       ;Get Char
-   407 000001D0 C3                              ret
-   408                                          ;; end of getc
-   409                                  %endif
-   410                                  ;;; ;;;;;;;;;;;;;
-   411                                  
-   412                                  STARTUP:
-   413 000001D1 8CCB                         MOV  BX,CS
-   414 000001D3 8EC3                         MOV  ES,BX
-   415 000001D5 8EDB                         MOV  DS,BX
-   416                                       ;MOV  DI,OBJEND	; &"&"
-   417                                       ;MOV  AX,CS:[DI]	;AX = &
-   418                                  
-   419                                       ;ADD  AX,STACKSPACE	;new SP = &+StackSpace
-   420                                       ;MOV  SP,AX
-   421                                       ;MOV  CL,4
-   422                                       ;SHR  AX,CL			;AX=sp/16
-   423                                       ;ADD  AX,BX			;AX=AX+CS
-   424                                       ;INC  AX
-   425                                       ;MOV  DS,AX
-   426                                       ;ADD  AX,DATAAREA
-   427                                       ;MOV  BX,AX
-   428                                       ;MOV  AH,4AH
-   429                                       ;INT  21H
-   430 000001D7 BB0003                       MOV  BX,USERSTART
-   431 000001DA FFE3                         JMP  BX
-   432                                  	;;
-   433                                  intTest:
-   434 000001DC 50                      	push ax
-   435                                  	;;; 
-   436 000001DD A10202                  	mov ax,[0x202]
-   437 000001E0 40                      	inc ax
-   438 000001E1 A30202                  	mov [0x202],ax
-   439 000001E4 E504                    	in ax,4 ;sysreg
-   440 000001E6 83E002                  	and ax,2 ;time int?
-   441                                  	;jz inttst0
-   442 000001E9 E708                    	out 08h,ax ;time int clr
-   443 000001EB 01C0                    	add ax,ax
-   444 000001ED 01C0                    	add ax,ax
-   445                                  inttst0:	
-   446 000001EF 83C803                  	or ax,3
-   447 000001F2 E70C                    	out 0Ch,ax ;sysreg
-   448                                  	;;; 
-   449 000001F4 58                      	pop ax
-   450 000001F5 FB                      	sti
-   451 000001F6 CF                      	iret
-   452                                  	;jmp IRETX1
-   453                                  ;nmiTest:	
-   454                                  ;	inc word [0x21a]
-   455                                  ;	iret
-   456                                  
-   457                                  ;;; ;
-   458                                  ;start_end equ 2ffh+COMOFFSET
-   459                                  ;        TIMES start_end-($-$$) DB 41h   ;0FFh
-   460                                  ;	db 41h
-   461                                  
-   462                                  ;END
-   463                                  	;mov di,ax
-   464                                  	;mov al,ES:[di]
-   465                                  
-   466                                  
-   467                                  	;mov bx,[0c0ah]
-   468                                  	;mov ES,bx
-   469                                  	;pop di
-   470                                  	;mov ES:[di],al
+   362                                       ;MOV  AH,02H
+   363                                       MOV  AH,06H
+   364                                       MOV  DL,AL
+   365                                       INT  21H
+   366                                       pop dx
+   367                                       pop cx
+   368                                       pop bx
+   369                                       pop ax
+   370                                       RET
+   371                                  getc:   
+   372                                       push bx
+   373                                       push cx
+   374                                       push dx
+   375                                       ;MOV  AH,08H
+   376                                  getc1:
+   377                                       MOV  AH,06H
+   378                                       MOV  DL,0ffh
+   379                                       INT  21H
+   380                                       jz getc1
+   381                                       XOR  AH,AH
+   382                                       ;call putc
+   383                                       pop dx
+   384                                       pop cx
+   385                                       pop bx
+   386                                       RET
+   387                                  %endif
+   388                                  %ifdef RAW	
+   389                                  ;--------------------------
+   390                                  ; Serial I/O
+   391                                  ;--------------------------
+   392 000001B5 50                      putc:   push ax
+   393 000001B6 E401                    putc1:  in      al,USARTC       ;Get status
+   394 000001B8 2401                            and     al,01h          ;check TxBUF empty
+   395 000001BA 74FA                            jz      putc1           ;wait for empty
+   396 000001BC 58                              pop     ax              ;Restore char
+   397 000001BD E600                            out     USARTD,al       ;Out it
+   398 000001BF C3                              ret
+   399                                          ;; end of putc
+   400                                  
+   401                                  getc:   
+   402                                  getc1:
+   403                                          ;;; himatubusi SW->LED
+   404 000001C0 E404                            in al,04h               ;read SW1
+   405 000001C2 00C0                            add al,al
+   406 000001C4 00C0                            add al,al
+   407 000001C6 E60C                            out 0Ch,al              ;out LED
+   408                                          ;;; 
+   409 000001C8 E401                            in      al,USARTC       ;Get status
+   410 000001CA 2402                            and     al,02h          ;check RxBUF full
+   411 000001CC 74F2                            jz      getc1           ;wait for empty
+   412 000001CE E400                            in      al,USARTD       ;Get Char
+   413 000001D0 C3                              ret
+   414                                          ;; end of getc
+   415                                  %endif
+   416                                  ;;; ;;;;;;;;;;;;;
+   417                                  
+   418                                  STARTUP:
+   419 000001D1 8CCB                         MOV  BX,CS
+   420 000001D3 8EC3                         MOV  ES,BX
+   421 000001D5 8EDB                         MOV  DS,BX
+   422                                       ;MOV  DI,OBJEND	; &"&"
+   423                                       ;MOV  AX,CS:[DI]	;AX = &
+   424                                  
+   425                                       ;ADD  AX,STACKSPACE	;new SP = &+StackSpace
+   426                                       ;MOV  SP,AX
+   427                                       ;MOV  CL,4
+   428                                       ;SHR  AX,CL			;AX=sp/16
+   429                                       ;ADD  AX,BX			;AX=AX+CS
+   430                                       ;INC  AX
+   431                                       ;MOV  DS,AX
+   432                                       ;ADD  AX,DATAAREA
+   433                                       ;MOV  BX,AX
+   434                                       ;MOV  AH,4AH
+   435                                       ;INT  21H
+   436 000001D7 BB0003                       MOV  BX,USERSTART
+   437 000001DA FFE3                         JMP  BX
+   438                                  	;;
+   439                                  intTest:
+   440 000001DC 50                      	push ax
+   441                                  	;;; 
+   442 000001DD A10202                  	mov ax,[0x202]
+   443 000001E0 40                      	inc ax
+   444 000001E1 A30202                  	mov [0x202],ax
+   445 000001E4 E504                    	in ax,4 ;sysreg
+   446 000001E6 83E002                  	and ax,2 ;time int?
+   447                                  	;jz inttst0
+   448 000001E9 E708                    	out 08h,ax ;time int clr
+   449 000001EB 01C0                    	add ax,ax
+   450 000001ED 01C0                    	add ax,ax
+   451                                  inttst0:	
+   452 000001EF 83C803                  	or ax,3
+   453 000001F2 E70C                    	out 0Ch,ax ;sysreg
+   454                                  	;;; 
+   455 000001F4 58                      	pop ax
+   456 000001F5 FB                      	sti
+   457 000001F6 CF                      	iret
+   458                                  	;jmp IRETX1
+   459                                  ;nmiTest:	
+   460                                  ;	inc word [0x21a]
+   461                                  ;	iret
+   462                                  
+   463                                  ;;; ;
+   464                                  ;start_end equ 2ffh+COMOFFSET
+   465                                  ;        TIMES start_end-($-$$) DB 41h   ;0FFh
+   466                                  ;	db 41h
+   467                                  
+   468                                  ;END
+   469                                  	;mov di,ax
+   470                                  	;mov al,ES:[di]
    471                                  
-   472                                  	;or ax,ax
-   473                                  	;jz xxx
-   474                                  	;;;mov ax,0FFFFh
-   475                                  	;xor ax,ax
-   476                                  	;dec ax
-   477                                  ;xxx:	inc ax
-   478                                  
-   479                                  	;and bx,ax
-   480                                  	;or bx,ax
-   481                                  	;xor bx,ax
-   482                                  	;mov dx,ax
-   483                                  	;in al,dx
-   484                                  	;mov dx,bx
-   485                                  	;out dx,al
-   486                                  	;push ax
-   487                                  	;pop dx
+   472                                  
+   473                                  	;mov bx,[0c0ah]
+   474                                  	;mov ES,bx
+   475                                  	;pop di
+   476                                  	;mov ES:[di],al
+   477                                  
+   478                                  	;or ax,ax
+   479                                  	;jz xxx
+   480                                  	;;;mov ax,0FFFFh
+   481                                  	;xor ax,ax
+   482                                  	;dec ax
+   483                                  ;xxx:	inc ax
+   484                                  
+   485                                  	;and bx,ax
+   486                                  	;or bx,ax
+   487                                  	;xor bx,ax
+   488                                  	;mov dx,ax
+   489                                  	;in al,dx
+   490                                  	;mov dx,bx
+   491                                  	;out dx,al
+   492                                  	;push ax
+   493                                  	;pop dx
