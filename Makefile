@@ -2,7 +2,8 @@
 all: gc86 rt.com rt-raw.com # gc86-raw
 
 gc86: gc86.c
-	cc  -DDOS -o gc86  gc86.c
+	cc  -o gc86  gc86.c
+#	cc  -DDOS -o gc86  gc86.c
 
 gc86-raw: gc86.c
 	cc -o gc86-raw gc86.c

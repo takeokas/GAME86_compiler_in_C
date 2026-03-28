@@ -359,7 +359,8 @@ putc:
      push bx
      push cx
      push dx
-     MOV  AH,02H
+     ;MOV  AH,02H
+     MOV  AH,06H
      MOV  DL,AL
      INT  21H
      pop dx
@@ -371,9 +372,14 @@ getc:
      push bx
      push cx
      push dx
-     MOV  AH,08H
+     ;MOV  AH,08H
+getc1:
+     MOV  AH,06H
+     MOV  DL,0ffh
      INT  21H
+     jz getc1
      XOR  AH,AH
+     ;call putc
      pop dx
      pop cx
      pop bx

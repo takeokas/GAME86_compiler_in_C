@@ -19,7 +19,7 @@
   生成バイナリの、メモリ・マップ
 
   RAW
-   CS,DS:40h |--------------------| 400h:0000h
+   CS,DS:40h |--------------------| 0000h
              |   RUNTIME          |
              |--------------------| 100h
              |   RUNTIME Work     |
@@ -33,7 +33,9 @@
              |--------------------| FFFF
 
   DOS
-   CS,DS:40h |--------------------| 400h:0100h
+      CS,DS  |--------------------| 0000
+             |   (PSP)            | 
+             |--------------------| 100h
              |   RUNTIME          |
              |--------------------| 200h
              |   RUNTIME Work     |
@@ -421,6 +423,8 @@ SignedNum()
  if((c=='$') && !isxdigit(ReadChar(1))){
    S++;
    //printf("---$INCHAR----");
+   PutObj(1,0xE8);
+   PutAdr(INCH);         /* CALL INCHAR */
    return -1; // no value && '$' then INCHAR
  }
  if(c=='-'){
