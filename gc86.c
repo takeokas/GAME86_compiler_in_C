@@ -90,6 +90,7 @@ int Dos=1;
 int ComOffset =0x100;      /*Offset for DOS *.COM file*/
 int  RTAdr; // may be ComOffset. Runtime routines Top address, Top of Object code
 char *RTName ="rt.com";  // for DOS
+int StartAdr= -1;
 
   /* Run-time Routine Address for MS-DOS GAME86 compiler     */
 int OUTCH;
@@ -113,13 +114,17 @@ int INTEntry;
 void
 setup(int dos)
 {
+  if(StartAdr != -1){
+    ComOffset=StartAdr;     /*Offset for file*/
+  }
   if(dos){
-    ComOffset= 0x100;      /*Offset for .COM file*/
+    //ComOffset= 0x100;      /*Offset for .COM file*/
     RTName= "rt.com";
   }else{ //RAW
-    ComOffset= 0x0;      /*Offset for  RAW .COM file*/
+    //ComOffset= 0x0;      /*Offset for  RAW .COM file*/
     RTName= "rt-raw.com";
   }
+
 
   RTAdr= ComOffset;
   /* Run-time Routine Address for MS-DOS GAME86 compiler     */
@@ -1117,17 +1122,19 @@ void
 usage()
 {
   title();
-  printf("%s [-o OutFileName] [-l] [-v] [-r]  Source_filename\n", cmdname);
+  printf("%s [-o OutFileName] [-s StartAddress] [-l] [-v] [-r]  Source_filename\n", cmdname);
 }
 
 int
 do_args(int argc, char *argv[])
 {
-  int opt;
-  while ((opt = getopt(argc, argv, "rlvo:")) != -1) {
+  int opt,x;
+  while ((opt = getopt(argc, argv, "rlvo:s:")) != -1) {
         switch (opt) {
 	case 'r':
 	  Dos = 0;
+	  //ComOffset= 0;  /*default Offset for bin file*/
+	  ComOffset= 0x100;  /*default Offset for bin file*/
 	  break;
 	case 'v':
 	  Verb = 1;
@@ -1138,11 +1145,18 @@ do_args(int argc, char *argv[])
 	case 'o':
 	  SaveFileName = optarg; // optarg は引数の値
 	  break;
+	case 's':
+	  x=sscanf(optarg,"%x ", &StartAdr);
+	  if(x != 1) {
+	    usage();
+	    printf("Start Address must be Hex number.\n");
+	    exit(1); }
+	  break;
 	case '?':
 	case 'h':
 	default:
 	  usage();
-	  printf("-o FileName : specify output file\n-l : Listing Address of Lines\n-v : verbose\n-r : raw binary(start address=0000h)\n");
+	  printf("-o FileName : specify output file\n-s StartAddress:specfy the start address\n-l : Listing Address of Lines\n-v : verbose\n-r : raw binary\n");
 	  exit(1);
 	  //return -1;
         }
